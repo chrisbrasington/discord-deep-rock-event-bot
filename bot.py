@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import datetime, discord, json, random
+import asyncio, datetime, discord, json, signal, random
 from datetime import timedelta
 from discord.ext import commands
 from pytz import timezone
@@ -22,6 +22,8 @@ class GuildConfiguration:
         data = json.loads(json_string)
         return cls(**data)
 
+has_alerted = False
+
 # create a discord client
 client = discord.Client(intents=discord.Intents.all())
 
@@ -39,6 +41,30 @@ event_images = [
     'meme2.jpg'
 ]
 
+alarm_timer = 360 #3600 seconds in an hour? 1 appears to be 10 seconds
+
+# alarm handler
+async def alarm_handler(signal):
+    global guild_config, has_alerted
+    
+    if is_wed():
+        if not has_alerted:
+            print('alert check - Wednesday but before noon')
+            if await has_event() and datetime.datetime.now().hour >= 12:
+                print('alerting to channel!!')
+                has_alerted = True
+                guild = client.get_guild(guild_config.guild_id)
+                gaming = guild.get_channel(guild_config.notify_channel_id)
+                await gaming.send(await get_event_url())
+        else:
+            print('alarm check - Wednesday already alerted')
+    else:
+        print('alert check - it is not Wednesday')
+        has_alerted = False
+
+    # re-signal alarm
+    signal.alarm(alarm_timer)
+
 # define the event creation function
 async def create_event(guild, name, event_time, image):
     print(f'creating event on {guild} at {event_time}')
@@ -50,10 +76,6 @@ async def create_event(guild, name, event_time, image):
         description = 'Come hang out, deep rock and chill.\n\nRepeats every Wednesday afternoon.',
         image = image
         )
-
-    gaming = guild.get_channel(guild_config.notify_channel_id)
-
-    await gaming.send(event.url)
 
 # handle the ready event
 @client.event
@@ -73,6 +95,8 @@ async def on_ready():
 
         await create_event(guild, name, 
             next_wed, image_bytes)
+
+
 
 async def get_next_wed():
     # Get the current date and time
@@ -96,15 +120,31 @@ async def get_next_wed():
 
 # check if guild has event
 async def has_event():
+    global guild_config
     guild = client.get_guild(guild_config.guild_id)
     found = False
 
     for event in guild.scheduled_events:
-        print(event.name)
+        print(f'exists: {event.name}')
         if event.name in event_names:
             found = True
     
     return found
+
+async def get_event_url():
+    guild = client.get_guild(guild_config.guild_id)
+    found = False
+
+    for event in guild.scheduled_events:
+        print(f'exists: {event.name}')
+        if event.name in event_names:
+            return event.url
+    
+    return ''
+
+def is_wed():
+    day_of_week = datetime.datetime.now().astimezone().date().weekday()
+    return day_of_week == 2 #wed
 
 # load config from file
 def load_config_from_file(filename: str):
@@ -133,6 +173,14 @@ guild_config = load_config_from_file('settings.json')
 # read the token from the file
 with open("bot_token.txt", "r") as f:
     token = f.read()
+
+signal.signal(signal.SIGALRM, alarm_handler)
+signal.setitimer(signal.ITIMER_REAL, 5, 5)
+signal.signal(signal.SIGALRM, lambda signum, frame: 
+    # alarm_handler(signal)
+    asyncio.create_task(alarm_handler(signal))
+)
+signal.alarm(10)
 
 # run the bot
 client.run(token)
