@@ -1,8 +1,26 @@
 #!/usr/bin/env python3
-import datetime, discord, random
+import datetime, discord, json, random
 from datetime import timedelta
 from discord.ext import commands
 from pytz import timezone
+
+class GuildConfiguration:
+    def __init__(self, guild_id: int, voice_channel_id: int, notify_channel_id: int):
+        self.guild_id = guild_id
+        self.voice_channel_id = voice_channel_id
+        self.notify_channel_id = notify_channel_id
+
+    def to_json(self):
+        return json.dumps({
+            "guild_id": self.guild_id,
+            "voice_channel_id": self.voice_channel_id,
+            "notify_channel_id": self.notify_channel_id
+        })
+
+    @classmethod
+    def from_json(cls, json_string: str):
+        data = json.loads(json_string)
+        return cls(**data)
 
 # create a discord client
 client = discord.Client(intents=discord.Intents.all())
@@ -21,50 +39,27 @@ event_images = [
     'meme2.jpg'
 ]
 
-# define the event name, time, and image
-# event_name = "Deep Rockin' Wednesdays"
-# event_time = datetime.now() + timedelta(days=7, hours=20)
-# event_image = 'eventgalsbanner.png'
-
 # define the event creation function
 async def create_event(guild, name, event_time, image):
-    global channel_id, gaming_id
-
-    print('creating event')
-    print(guild)
-    # create the event
-    # https://discordpy.readthedocs.io/en/stable/api.html#discord.Guild.create_scheduled_event
-    # channel_type = discord.Entiy
-    # print(channel_type)
-    print(f'channel_id: {channel_id}')
-    print(event_time)
+    print(f'creating event on {guild} at {event_time}')
 
     event = await guild.create_scheduled_event(
         name=name, start_time=event_time,
-        channel = guild.get_channel(channel_id), 
+        channel = guild.get_channel(guild_config.voice_channel_id), 
         entity_type = discord.EntityType.voice,
         description = 'Come hang out, deep rock and chill.\n\nRepeats every Wednesday afternoon.',
         image = image
         )
-    # set the event thumbnail
-    # await event.set_thumbnail(url=image)
-    # send a confirmation message
-    # await event.send(f"Event '{name}' has been created at {time} with image {image}")
 
-    # print(event)
-
-    gaming = guild.get_channel(gaming_id)
+    gaming = guild.get_channel(guild_config.notify_channel_id)
 
     await gaming.send(event.url)
-
 
 # handle the ready event
 @client.event
 async def on_ready():
-    global guild_id
-
     # get the current guild
-    guild = client.get_guild(guild_id)
+    guild = client.get_guild(guild_config.guild_id)
 
     if not await has_event():
         name = random.choice(event_names)
@@ -75,7 +70,6 @@ async def on_ready():
             image_bytes = image_file.read()
 
         next_wed = await get_next_wed()
-        print(next_wed)
 
         await create_event(guild, name, 
             next_wed, image_bytes)
@@ -100,11 +94,9 @@ async def get_next_wed():
 
     return next_wednesday
 
-
+# check if guild has event
 async def has_event():
-    guild = client.get_guild(guild_id)
-    print(f'{guild.name} events')
-
+    guild = client.get_guild(guild_config.guild_id)
     found = False
 
     for event in guild.scheduled_events:
@@ -112,14 +104,15 @@ async def has_event():
         if event.name in event_names:
             found = True
     
-    if found:
-        print('Event exists')
-    else:
-        print('Event not found')
     return found
 
+# load config from file
+def load_config_from_file(filename: str):
+    with open(filename, "r") as f:
+        json_string = f.read()
+        return GuildConfiguration.from_json(json_string)
 
-
+# on message respond
 @client.event
 async def on_message(message):
     respond = False
@@ -135,18 +128,11 @@ async def on_message(message):
         print(response)
         await message.channel.send(response)
 
+guild_config = load_config_from_file('settings.json')
+
 # read the token from the file
 with open("bot_token.txt", "r") as f:
     token = f.read()
-
-with open("guild_id.txt", "r") as f:
-    guild_id = int(f.read())
-
-with open("channel.txt", "r") as f:
-    channel_id = int(f.read())
-
-with open("channel_gaming.txt", "r") as f:
-    gaming_id = int(f.read())
 
 # run the bot
 client.run(token)
