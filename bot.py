@@ -51,6 +51,9 @@ alarm_timer = 360 #3600 seconds in an hour? 1 appears to be 10 seconds
 # alarm handler
 async def alarm_handler(signal):
     global guild_config, has_alerted
+
+    # every alarm check if event exists, if not create it
+    await create_event_if_not_exists()
     
     if is_wed():
         if not has_alerted:
