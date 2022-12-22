@@ -4,6 +4,7 @@ from datetime import timedelta
 from discord.ext import commands
 from pytz import timezone
 
+# guild configuration and channels
 class GuildConfiguration:
     def __init__(self, guild_id: int, voice_channel_id: int, notify_channel_id: int):
         self.guild_id = guild_id
@@ -22,11 +23,13 @@ class GuildConfiguration:
         data = json.loads(json_string)
         return cls(**data)
 
+# has alerted (Wednesday only)
 has_alerted = False
 
 # create a discord client
 client = discord.Client(intents=discord.Intents.all())
 
+# event names
 event_names = [
     'Deep Rockin\' Wednesdays',
     'Deep Rock Hump Day',
@@ -34,6 +37,7 @@ event_names = [
     'Stony Rock Extrapalooza'
 ]
 
+# event images
 event_images = [
     'eventgals_banner.png',
     'promo.jpg', 
@@ -41,6 +45,7 @@ event_images = [
     'meme2.jpg'
 ]
 
+# alarm timer
 alarm_timer = 360 #3600 seconds in an hour? 1 appears to be 10 seconds
 
 # alarm handler
@@ -50,7 +55,7 @@ async def alarm_handler(signal):
     if is_wed():
         if not has_alerted:
             print('alert check - Wednesday but before noon')
-            if await has_event() and datetime.datetime.now().hour >= 12:
+            if await has_event() and datetime.datetime.now().astimezone().hour >= 12:
                 print('alerting to channel!!')
                 has_alerted = True
                 guild = client.get_guild(guild_config.guild_id)
@@ -65,9 +70,9 @@ async def alarm_handler(signal):
     # re-signal alarm
     signal.alarm(alarm_timer)
 
-# define the event creation function
+# creation event 
 async def create_event(guild, name, event_time, image):
-    print(f'creating event on {guild} at {event_time}')
+    print(f'creating event on {guild} at {event_time} as {name}')
 
     event = await guild.create_scheduled_event(
         name=name, start_time=event_time,
@@ -77,16 +82,18 @@ async def create_event(guild, name, event_time, image):
         image = image
         )
 
-# handle the ready event
-@client.event
-async def on_ready():
-    # get the current guild
-    guild = client.get_guild(guild_config.guild_id)
-
+# create event if not exists
+async def create_event_if_not_exists():
     if not await has_event():
-        name = random.choice(event_names)
 
+        # get the current guild
+        guild = client.get_guild(guild_config.guild_id)
+
+        # random name
+        name = random.choice(event_names)
+        # random image
         image_pick = random.choice(event_images)
+
         print(image_pick)
         with open(image_pick, "rb") as image_file:
             image_bytes = image_file.read()
@@ -96,8 +103,7 @@ async def on_ready():
         await create_event(guild, name, 
             next_wed, image_bytes)
 
-
-
+# get next Wednesday
 async def get_next_wed():
     # Get the current date and time
     now = datetime.datetime.now().astimezone()
@@ -118,6 +124,18 @@ async def get_next_wed():
 
     return next_wednesday
 
+# get event url
+async def get_event_url():
+    guild = client.get_guild(guild_config.guild_id)
+    found = False
+
+    for event in guild.scheduled_events:
+        print(f'exists: {event.name}')
+        if event.name in event_names:
+            return event.url
+    return ''
+
+
 # check if guild has event
 async def has_event():
     global guild_config
@@ -131,17 +149,7 @@ async def has_event():
     
     return found
 
-async def get_event_url():
-    guild = client.get_guild(guild_config.guild_id)
-    found = False
-
-    for event in guild.scheduled_events:
-        print(f'exists: {event.name}')
-        if event.name in event_names:
-            return event.url
-    
-    return ''
-
+# is Wednesday now?
 def is_wed():
     day_of_week = datetime.datetime.now().astimezone().date().weekday()
     return day_of_week == 2 #wed
@@ -156,17 +164,32 @@ def load_config_from_file(filename: str):
 @client.event
 async def on_message(message):
     respond = False
+    appendEvent = False
+    eventUrl = ''
+
     # if the message is not from a bot
     if not message.author.bot and client.user in message.mentions:
         respond = True
+        # selectively respond with event url in check
+        if 'check' in message.content and await has_event():
+            appendEvent = True
+            eventUrl = await get_event_url()
     elif 'rock' in message.content and 'ston' in message.content:
         respond = True
 
     # respond with "rock and stone"
     if respond:
         response = f"Rock and Stone! {message.author.mention}"
+        if(appendEvent):
+            response += f'\n{eventUrl}'
         print(response)
         await message.channel.send(response)
+        await create_event_if_not_exists()
+
+# handle the ready event
+@client.event
+async def on_ready():
+    await create_event_if_not_exists()
 
 guild_config = load_config_from_file('settings.json')
 
