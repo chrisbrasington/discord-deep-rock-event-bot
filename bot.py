@@ -58,7 +58,14 @@ async def alarm_handler(signal):
     if is_wed():
         if not has_alerted:
             print('alert check - Wednesday but before noon')
-            if await has_event() and datetime.datetime.now().astimezone().hour >= 12:
+            
+            # Set the timezone to Denver
+            denver_tz = pytz.timezone('America/Denver')
+
+            # Get the current time in Denver
+            now = datetime.datetime.now(denver_tz)
+
+            if await has_event() and now.hour >= 12:
                 print('alerting to channel!!')
                 has_alerted = True
                 guild = client.get_guild(guild_config.guild_id)
