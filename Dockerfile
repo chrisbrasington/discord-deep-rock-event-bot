@@ -1,6 +1,8 @@
 # docker build -t deep-rock-bot .
-# docker run --restart always --name deep-rock-bot deep-rock-bot:latest
-# docker restart deep-rock-bot
+# docker stop deep-rock-bot
+# docker rm deep-rock-bot
+# docker run -d --restart always --name deep-rock-bot -e TZ=America/Denver deep-rock-bot:latest
+
 FROM python:3.8
 
 # Set the working directory to /app
