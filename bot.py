@@ -3,6 +3,7 @@ import asyncio, datetime, discord, json, signal, random
 from datetime import timedelta
 from discord.ext import commands
 from pytz import timezone
+import pytz
 
 # guild configuration and channels
 class GuildConfiguration:
@@ -153,7 +154,7 @@ async def has_event():
     found = False
 
     for event in guild.scheduled_events:
-        if event.start_time < datetime.datetime.utcnow():
+        if event.start_time.astimezone(pytz.UTC) < datetime.datetime.now(pytz.UTC):
             print(f'already passed: {event.name} at {event.start_time}')    
         else:
             print(f'exists: {event.name} at {event.start_time}')
