@@ -202,6 +202,14 @@ async def on_message(message):
 # handle the ready event
 @client.event
 async def on_ready():
+    channel_id = 737797410041888829
+    channel = client.get_channel(channel_id)
+    if channel is not None:
+        await channel.send("I am online and ready for a mission.")
+    else:
+        print(f"Channel with ID {channel_id} does not exist.")
+
+
     await create_event_if_not_exists()
 
 guild_config = load_config_from_file('settings.json')
