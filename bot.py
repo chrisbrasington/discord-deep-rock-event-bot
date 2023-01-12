@@ -203,12 +203,13 @@ async def on_message(message):
 @client.event
 async def on_ready():
     channel_id = 737797410041888829
-    channel = client.get_channel(channel_id)
-    if channel is not None:
-        await channel.send("I am online and ready for a mission.")
+    guild = client.get_guild(guild_config.guild_id)
+    botChannel = guild.get_channel(channel_id)
+
+    if botChannel is not None:
+        await botChannel.send("I am online and ready for a mission.")
     else:
         print(f"Channel with ID {channel_id} does not exist.")
-
 
     await create_event_if_not_exists()
 
