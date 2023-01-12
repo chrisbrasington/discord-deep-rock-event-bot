@@ -153,9 +153,12 @@ async def has_event():
     found = False
 
     for event in guild.scheduled_events:
-        print(f'exists: {event.name}')
-        if event.name in event_names:
-            found = True
+        if event.scheduled_time < datetime.utcnow():
+            print(f'already passed: {event.name} at {event.scheduled_time}')    
+        else:
+            print(f'exists: {event.name} at {event.scheduled_time}')
+            if event.name in event_names:
+                found = True
     
     return found
 
