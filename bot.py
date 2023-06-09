@@ -159,8 +159,6 @@ async def has_event():
     guild = client.get_guild(guild_config.guild_id)
     found = False
 
-    await guild.fetch_scheduled_events()
-
     for event in guild.scheduled_events:
         if event.start_time.astimezone(pytz.UTC) < datetime.datetime.now(pytz.UTC):
             print(f'already passed: {event.name} at {event.start_time}')    
