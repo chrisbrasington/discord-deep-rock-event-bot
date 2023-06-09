@@ -47,7 +47,7 @@ event_images = [
 ]
 
 # alarm timer
-alarm_timer = 360 #3600 seconds in an hour? 1 appears to be 10 seconds
+alarm_timer = 3600 #3600 seconds == 1 hour
 
 # alarm handler
 async def alarm_handler(signal):
@@ -159,13 +159,19 @@ async def has_event():
     guild = client.get_guild(guild_config.guild_id)
     found = False
 
-    for event in guild.scheduled_events:
+    events = await guild.fetch_scheduled_events()
+
+    for event in events:
+        print(event.name)
         if event.start_time.astimezone(pytz.UTC) < datetime.datetime.now(pytz.UTC):
-            print(f'already passed: {event.name} at {event.start_time}')    
+            print(f'\talready passed: {event.name} at {event.start_time}')    
         else:
-            print(f'exists: {event.name} at {event.start_time}')
+            print(f'\texists: {event.name} at {event.start_time}')
             if event.name in event_names:
+                print('\tfound deep-rock event!')
                 found = True
+            else:
+                print('\tother event, ignoring')
     
     return found
 

@@ -1,5 +1,5 @@
 asyncio
 datetime
-discord
+discord.py==2.2.3
 pytz
 timedelta
