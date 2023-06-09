@@ -161,6 +161,8 @@ async def has_event():
 
     events = await guild.fetch_scheduled_events(with_counts=True)
 
+    for event in events:
+        print(f'exists: {event.name}')
 
     # print(guild.scheduled_events)
 
