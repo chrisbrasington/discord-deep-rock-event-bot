@@ -47,7 +47,7 @@ event_images = [
 ]
 
 # alarm timer
-alarm_timer = 360 #3600 seconds in an hour? 1 appears to be 10 seconds
+alarm_timer = 3600 #3600 seconds == 1 hour
 
 # alarm handler
 async def alarm_handler(signal):
