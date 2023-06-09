@@ -53,6 +53,8 @@ alarm_timer = 360 #3600 seconds in an hour? 1 appears to be 10 seconds
 async def alarm_handler(signal):
     global guild_config, has_alerted
 
+    print('Alarm triggered!')
+
     # every alarm check if event exists, if not create it
     await create_event_if_not_exists()
     
@@ -86,7 +88,8 @@ async def create_event(guild, name, event_time, image):
     print(f'creating event on {guild} at {event_time} as {name}')
 
     event = await guild.create_scheduled_event(
-        name=name, start_time=event_time,
+        name=name, 
+        start_time=event_time,
         channel = guild.get_channel(guild_config.voice_channel_id), 
         entity_type = discord.EntityType.voice,
         description = 'Come hang out, deep rock and chill.\n\nRepeats every Wednesday afternoon.',
@@ -150,8 +153,13 @@ async def get_event_url():
 # check if guild has event
 async def has_event():
     global guild_config
+
+    print('Checking if guild has event')
+
     guild = client.get_guild(guild_config.guild_id)
     found = False
+
+    await guild.fetch_scheduled_events()
 
     for event in guild.scheduled_events:
         if event.start_time.astimezone(pytz.UTC) < datetime.datetime.now(pytz.UTC):
@@ -203,13 +211,13 @@ async def on_message(message):
 # handle the ready event
 @client.event
 async def on_ready():
+    print('Bot is ready!')
+
     channel_id = 737797410041888829
     guild = client.get_guild(guild_config.guild_id)
     botChannel = guild.get_channel(channel_id)
 
-    if botChannel is not None:
-        await botChannel.send("I am online and ready for a mission.")
-    else:
+    if botChannel is None:
         print(f"Channel with ID {channel_id} does not exist.")
 
     await create_event_if_not_exists()
