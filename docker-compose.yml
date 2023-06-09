@@ -1,7 +1,8 @@
 version: '3'
 services:
   deep-rock-bot:
-    build: .
+    build:
+      context: .
     restart: always
     environment:
-    - TZ=America/Denver
+      - TZ=America/Denver
