@@ -224,7 +224,8 @@ async def on_ready():
     if botChannel is None:
         print(f"Channel with ID {channel_id} does not exist.")
 
-    await create_event_if_not_exists()
+    # already trigged by alarm trigger
+    # await create_event_if_not_exists()
 
 guild_config = load_config_from_file('settings.json')
 
