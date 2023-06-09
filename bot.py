@@ -159,7 +159,9 @@ async def has_event():
     guild = client.get_guild(guild_config.guild_id)
     found = False
 
-    await guild.fetch_scheduled_events()
+    events = await guild.fetch_scheduled_events()
+
+    
     # print(guild.scheduled_events)
 
     # for event in guild.scheduled_events:
