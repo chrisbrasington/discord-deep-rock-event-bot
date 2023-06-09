@@ -160,6 +160,7 @@ async def has_event():
     found = False
 
     print(guild.name)
+    print(guild)
 
     events = await guild.fetch_scheduled_events()
 
