@@ -1,5 +1,9 @@
 bot_token.txt
 *.txt
+config.json
+settings.json
+dev
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

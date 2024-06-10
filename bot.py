@@ -1,200 +1,107 @@
 #!/usr/bin/env python3
-import asyncio, datetime, discord, json, signal, random
+import asyncio
+import datetime
+import discord
+import json
+import random
 from datetime import timedelta
 from discord.ext import commands
-from pytz import timezone
+from discord import app_commands
 import pytz
 
-# guild configuration and channels
-class GuildConfiguration:
-    def __init__(self, guild_id: int, voice_channel_id: int, notify_channel_id: int):
-        self.guild_id = guild_id
-        self.voice_channel_id = voice_channel_id
-        self.notify_channel_id = notify_channel_id
+# Configure Discord bot
+class bot_client(discord.Client):
+    def __init__(self):
+        intents = discord.Intents.all()
+        super().__init__(intents=intents)
+        self.synced = False
 
-    def to_json(self):
-        return json.dumps({
-            "guild_id": self.guild_id,
-            "voice_channel_id": self.voice_channel_id,
-            "notify_channel_id": self.notify_channel_id
-        })
+    async def on_ready(self):
+        print(f'Logged in as {self.user.name}')
 
-    @classmethod
-    def from_json(cls, json_string: str):
-        data = json.loads(json_string)
-        return cls(**data)
+        await self.wait_until_ready()
+        if not self.synced:
+            with open("config.json") as config_file:
+                config = json.load(config_file)
 
-# has alerted (Wednesday only)
-has_alerted = False
+            guild = self.get_guild(config['guild_id'])
 
-# create a discord client
-client = discord.Client(intents=discord.Intents.all())
+            print(f'Syncing commands to {guild.name}...')
+            await tree.sync(guild=guild)
+            self.synced = True
 
-# event names
-event_names = [
-    'Deep Rockin\' Wednesdays',
-    'Deep Rock Hump Day',
-    'oh SH$# it\'s DEEP ROCK WEDNESDAYS',
-    'Stony Rock Extrapalooza'
-]
+        commands = await tree.fetch_commands(guild=guild)
 
-# event images
-event_images = [
-    'eventgals_banner.png',
-    'promo.jpg', 
-    'meme1.jpg',
-    'meme2.jpg'
-]
-
-# alarm timer
-alarm_timer = 3600 #3600 seconds == 1 hour
-
-# alarm handler
-async def alarm_handler(signal):
-    global guild_config, has_alerted
-
-    print('Alarm triggered!')
-
-    # every alarm check if event exists, if not create it
-    await create_event_if_not_exists()
-    
-    if is_wed():
-        if not has_alerted:
-            print('alert check - Wednesday but before noon')
-            
-            # Set the timezone to Denver
-            denver_tz = pytz.timezone('America/Denver')
-
-            # Get the current time in Denver
-            now = datetime.datetime.now(denver_tz)
-
-            if await has_event() and now.hour >= 12:
-                print('alerting to channel!!')
-                has_alerted = True
-                guild = client.get_guild(guild_config.guild_id)
-                gaming = guild.get_channel(guild_config.notify_channel_id)
-                await gaming.send(await get_event_url())
+        if len(commands) == 0:
+            print('No commands registered.')
         else:
-            print('alarm check - Wednesday already alerted')
-    else:
-        print('alert check - it is not Wednesday')
-        has_alerted = False
+            print('Registered commands:')
 
-    # re-signal alarm
-    signal.alarm(alarm_timer)
+        for command in commands:
+            print(f' {command.name}')
 
-# creation event 
-async def create_event(guild, name, event_time, image):
-    print(f'creating event on {guild} at {event_time} as {name}')
+        print('Bot is ready!')
 
-    event = await guild.create_scheduled_event(
-        name=name, 
-        start_time=event_time,
-        channel = guild.get_channel(guild_config.voice_channel_id), 
-        entity_type = discord.EntityType.voice,
-        description = 'Come hang out, deep rock and chill.\n\nRepeats every Wednesday afternoon.',
-        image = image
-        )
+async def setup():
+    global bot, tree, guild, guild_id
+    
+    # Define the guild using the ID from the config file
+    with open("config.json") as config_file:
+        config = json.load(config_file)
+        guild_id = config['guild_id']
+    
+        guild = discord.Object(id=guild_id)
+        # guild = bot.get_guild(guild_id)
 
-# create event if not exists
-async def create_event_if_not_exists():
-    if not await has_event():
-
-        # get the current guild
-        guild = client.get_guild(guild_config.guild_id)
-
-        # random name
-        name = random.choice(event_names)
-        # random image
-        image_pick = random.choice(event_images)
-
-        print(image_pick)
-        with open(image_pick, "rb") as image_file:
-            image_bytes = image_file.read()
-
-        next_wed = await get_next_wed()
-
-        await create_event(guild, name, 
-            next_wed, image_bytes)
-
-# get next Wednesday
-async def get_next_wed():
-    # Get the current date and time
-    now = datetime.datetime.now().astimezone()
-
-    # Get the current day of the week (0 is Monday, 6 is Sunday)
-    day_of_week = now.date().weekday()
-
-    # Calculate the number of days to add to get to the next Wednesday
-    days_to_add = 2 - day_of_week
-    if days_to_add < 0:
-        # If the current day is already Wednesday, add 7 days to get to the next Wednesday
-        days_to_add += 7
-
-    # Add the necessary number of days to get to the next Wednesday
-    next_wednesday = now + timedelta(days=days_to_add)
-
-    next_wednesday = next_wednesday.replace(hour=20,minute=0)
-
-    return next_wednesday
-
-# get event url
-async def get_event_url():
-    guild = client.get_guild(guild_config.guild_id)
-    found = False
-
-    for event in guild.scheduled_events:
-        print(f'exists: {event.name}')
-        if event.name in event_names:
-            return event.url
-    return ''
-
+# Define bot and tree as global variables
+event_name = 'Game Night'
+bot = bot_client()
+tree = app_commands.CommandTree(bot)
+asyncio.run(setup())
 
 # check if guild has event
 async def has_event():
-    global guild_config
+    global bot, guild_id
+
+    guild = bot.get_guild(guild_id)
 
     print('Checking if guild has event')
 
-    guild = client.get_guild(guild_config.guild_id)
-    found = False
+    found = []
 
     events = await guild.fetch_scheduled_events()
 
+    print(len(events))
+
     for event in events:
         print(event.name)
+
         if event.start_time.astimezone(pytz.UTC) < datetime.datetime.now(pytz.UTC):
             print(f'\talready passed: {event.name} at {event.start_time}')    
         else:
             print(f'\texists: {event.name} at {event.start_time}')
-            if event.name in event_names:
-                print('\tfound deep-rock event!')
-                found = True
+
+            # if starts with event_name
+            if event.name.startswith(event_name):
+                print(f'\tfound: {event.name} at {event.start_time}')
+                found.append(event)
             else:
                 print('\tother event, ignoring')
     
+    # sort found by start time
+    found.sort(key=lambda x: x.start_time)
+
     return found
 
-# is Wednesday now?
-def is_wed():
-    day_of_week = datetime.datetime.now().astimezone().date().weekday()
-    return day_of_week == 2 #wed
-
-# load config from file
-def load_config_from_file(filename: str):
-    with open(filename, "r") as f:
-        json_string = f.read()
-        return GuildConfiguration.from_json(json_string)
-
 # on message respond
-@client.event
+@bot.event
 async def on_message(message):
     respond = False
     appendEvent = False
     eventUrl = ''
 
     # if the message is not from a bot
-    if not message.author.bot and client.user in message.mentions:
+    if not message.author.bot and bot.user in message.mentions:
         respond = True
         # selectively respond with event url in check
         if 'check' in message.content and await has_event():
@@ -206,40 +113,69 @@ async def on_message(message):
     # respond with "rock and stone"
     if respond:
         response = f"Rock and Stone! {message.author.mention}"
-        if(appendEvent):
+        if appendEvent:
             response += f'\n{eventUrl}'
         print(response)
         await message.channel.send(response)
-        await create_event_if_not_exists()
 
-# handle the ready event
-@client.event
-async def on_ready():
-    print('Bot is ready!')
+@tree.command(guild=guild, description="Check all events")
+async def all(interaction):
+    await interaction.response.send_message("Checking all events...")
 
-    channel_id = 737797410041888829
-    guild = client.get_guild(guild_config.guild_id)
-    botChannel = guild.get_channel(channel_id)
+    events = await has_event()
 
-    if botChannel is None:
-        print(f"Channel with ID {channel_id} does not exist.")
+    if len(events) > 0:
+        for event in events:
+            await interaction.followup.send(f'{event.name} {event.url}')
+    else:
+        await interaction.followup.send("No events found.")
 
-    # already trigged by alarm trigger
-    # await create_event_if_not_exists()
+@tree.command(guild=guild, description="Check next event")
+async def remind(interaction):
+    await interaction.response.send_message("Checking for next event...")
 
-guild_config = load_config_from_file('settings.json')
+    events = await has_event()
+
+    if len(events) > 0:
+        # respond with event url
+        await interaction.followup.send(f'{events[0].name} {events[0].url}')
+    else:
+        await interaction.followup.send("No event found.")
+
+@tree.command(guild=guild, description="Start next event")
+async def start(interaction):
+    await interaction.response.send_message("Starting next event...")
+
+    events = await has_event()
+
+    if len(events) > 0:
+
+        event = events[0]
+        await event.edit(status=discord.EventStatus.active)
+
+        print(event.status)
+        await interaction.followup.send(f'Started event: {event.name} {event.url}')
+    else:
+        await interaction.followup.send("No event found.")
+
+@tree.command(guild=guild, description="end event")
+async def goodnight(interaction):
+    await interaction.response.send_message("End next event...")
+
+    events = await has_event()
+
+    if len(events) > 0:
+
+        event = events[0]
+        await event.edit(status=discord.EventStatus.completed)
+
+        print(event.status)
+        await interaction.followup.send(f'Ended event: {event.name}')
+    else:
+        await interaction.followup.send("No event found.")
 
 # read the token from the file
 with open("bot_token.txt", "r") as f:
     token = f.read()
 
-signal.signal(signal.SIGALRM, alarm_handler)
-signal.setitimer(signal.ITIMER_REAL, 5, 5)
-signal.signal(signal.SIGALRM, lambda signum, frame: 
-    # alarm_handler(signal)
-    asyncio.create_task(alarm_handler(signal))
-)
-signal.alarm(10)
-
-# run the bot
-client.run(token)
+bot.run(token)
