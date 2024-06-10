@@ -12,7 +12,7 @@ docker build -t deep-rock-bot .
 
 # run with an always restart
 echo 'running with restart always, mounted download folder and mounted config folder'
-docker run -e TZ=America/Denver --name deep-rock-bot -restart always -d deep-rock-bot:latest
+docker run -e TZ=America/Denver --name deep-rock-bot --restart always -d deep-rock-bot:latest
 
 # view logs
 echo 'watching logs with...'
